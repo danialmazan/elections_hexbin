@@ -225,15 +225,12 @@ def reserve_patch(cells, geometry, count):
     return chosen
 
 
-def build(args):
-    dataset = json.loads(args.dataset.read_text())
-    election = next(item for item in dataset["elections"] if item["id"] == "2019-11-10")
-    seats = {province["id"]: sum(row["seats"] for row in province["results"]) for province in election["provinces"]}
-    regions = {province["id"]: province["regionId"] for province in election["provinces"]}
-    source = json.loads(args.provinces.read_text())
+def generate_layout(source, seats, regions):
     province_shapes = {}
     for feature in source["features"]:
-        province_id = str(feature["properties"].get("codine", "")).zfill(2)
+        properties = feature["properties"]
+        national_code = str(properties.get("nationalcode", ""))
+        province_id = str(properties.get("codine") or (national_code[4:6] if len(national_code) >= 6 else "")).zfill(2)
         if province_id in seats:
             province_shapes[province_id] = project_geometry(shape(feature["geometry"]))
     if set(province_shapes) != set(seats):
@@ -274,14 +271,28 @@ def build(args):
     for pid in seats:
         nodes = {(cell["q"], cell["r"]) for cell in cells if cell["provinceId"] == pid}
         if not connected(nodes): raise RuntimeError(f"Province {pid} is disconnected")
+    return {"source": "IGN administrative-unit service", "gridSize": size, "offset": [offset_x, offset_y], "cells": sorted(cells, key=lambda cell: (cell["r"], cell["q"]))}
+
+
+def build(args):
+    dataset = json.loads(args.dataset.read_text())
+    if "election" in dataset:
+        election = dataset["election"]
+    else:
+        election = next(item for item in dataset["elections"] if item["id"] == args.election)
+    seats = {province["id"]: sum(row["seats"] for row in province["results"]) for province in election["provinces"]}
+    regions = {province["id"]: province["regionId"] for province in election["provinces"]}
+    source = json.loads(args.provinces.read_text())
+    layout = generate_layout(source, seats, regions)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps({"source": "IGN administrative-unit service", "gridSize": size, "offset": [offset_x, offset_y], "cells": sorted(cells, key=lambda cell: (cell["r"], cell["q"]))}, separators=(",", ":")))
-    print(f"Wrote {args.output} with {len(cells)} connected cells")
+    args.output.write_text(json.dumps(layout, separators=(",", ":")))
+    print(f"Wrote {args.output} with {len(layout['cells'])} connected cells")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--provinces", type=Path, required=True)
-    parser.add_argument("--dataset", type=Path, default=Path("src/data/generated.json"))
+    parser.add_argument("--dataset", type=Path, default=Path("public/data/elections/2019-11-10.json"))
+    parser.add_argument("--election", default="2019-11-10", help="Election ID for legacy multi-election datasets")
     parser.add_argument("--output", type=Path, default=Path("data/layouts/province-layout-2019.json"))
     build(parser.parse_args())

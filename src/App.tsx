@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import rawData from './data/generated.json'
+import { electionManifest, findElection, loadElection } from './data/elections'
 import { copy, formatNumber } from './i18n'
 import { boundaryPath, points, viewBox } from './lib/hex'
-import type { CartogramCell, ElectionData, ElectionId, GeneratedDataset, GeographyResult, Language, PartyMeta, ProvinceResult } from './types'
-
-const data = rawData as GeneratedDataset
+import type { CartogramCell, ElectionData, ElectionId, ElectionPayload, GeographyResult, Language, PartyMeta } from './types'
 
 function readState() {
   const query = new URLSearchParams(location.search)
-  const election = data.elections.some((item) => item.id === query.get('election')) ? query.get('election') as ElectionId : '2023-07-23'
+  const election = findElection(query.get('election'))?.id ?? '2023-07-23'
   const language: Language = query.get('lang') === 'en' ? 'en' : 'es'
   return { election, language, province: query.get('province') }
 }
 
 function ElectionControls({ election, language, onElection, onLanguage }: { election: ElectionId, language: Language, onElection: (id: ElectionId) => void, onLanguage: (value: Language) => void }) {
   const t = copy[language]
+  const selected = findElection(election)!
   return <div className="controls">
-    <div className="control-group"><span className="control-label">{t.election}</span><div className="segments">
-      {data.elections.map((item) => <button key={item.id} className={election === item.id ? 'active' : ''} aria-pressed={election === item.id} onClick={() => onElection(item.id)}>{item.label[language]}</button>)}
+    <div className="control-group"><label className="control-label" htmlFor="election-select">{t.election}</label><div className="election-picker">
+      <button type="button" onClick={() => selected.olderId && onElection(selected.olderId)} disabled={!selected.olderId} aria-label={t.olderElection}>←</button>
+      <select id="election-select" value={election} onChange={(event) => onElection(event.target.value)}>
+        {electionManifest.map((item) => <option key={item.id} value={item.id}>{item.label[language]}</option>)}
+      </select>
+      <button type="button" onClick={() => selected.newerId && onElection(selected.newerId)} disabled={!selected.newerId} aria-label={t.newerElection}>→</button>
     </div></div>
     <div className="language" aria-label={t.language}>
       <button className={language === 'es' ? 'active' : ''} onClick={() => onLanguage('es')} aria-pressed={language === 'es'}>ES</button>
@@ -111,13 +114,22 @@ function App() {
   const [resultScope, setResultScope] = useState<'province' | 'region' | 'national'>(initial.province ? 'province' : 'national')
   const [hoveredParty, setHoveredParty] = useState<string | null>(null)
   const [pinnedParty, setPinnedParty] = useState<string | null>(null)
-  const election = data.elections.find((item) => item.id === electionId)!
-  const layout = data.layouts.find((item) => item.electionId === electionId)!
-  const province = election.provinces.find((item) => item.id === provinceId) ?? null
-  const region = province ? election.regions.find((item) => item.id === province.regionId)! : null
-  const parties = useMemo(() => new Map(election.parties.map((party) => [party.id, party])), [election])
+  const [payload, setPayload] = useState<ElectionPayload | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const election = payload?.election ?? null
+  const layout = payload?.layout ?? null
+  const province = election?.provinces.find((item) => item.id === provinceId) ?? null
+  const region = province ? election?.regions.find((item) => item.id === province.regionId) ?? null : null
+  const parties = useMemo(() => new Map((election?.parties ?? []).map((party) => [party.id, party])), [election])
   const t = copy[language]
 
+  useEffect(() => {
+    let active = true
+    setPayload(null); setLoadError(false)
+    loadElection(electionId).then((next) => { if (active) setPayload(next) }).catch(() => { if (active) setLoadError(true) })
+    return () => { active = false }
+  }, [electionId, retry])
   useEffect(() => {
     const query = new URLSearchParams({ election: electionId, lang: language })
     if (provinceId) query.set('province', provinceId)
@@ -130,10 +142,14 @@ function App() {
     addEventListener('keydown', escape); return () => removeEventListener('keydown', escape)
   }, [])
   const selectProvince = (id: string | null) => { setProvinceId(id); setResultScope(id ? 'province' : 'national') }
+  const selectElection = (id: ElectionId) => { setElectionId(id); setPinnedParty(null); setHoveredParty(null) }
 
   return <main>
-    <header><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="intro">{t.intro}</p></div><ElectionControls election={electionId} language={language} onElection={setElectionId} onLanguage={setLanguage} /></header>
-    <div className="workspace">
+    <header><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="intro">{t.intro}</p></div><ElectionControls election={electionId} language={language} onElection={selectElection} onLanguage={setLanguage} /></header>
+    {!payload && <section className="data-state" aria-live="polite">
+      {loadError ? <><strong>{t.loadError}</strong><button onClick={() => setRetry((value) => value + 1)}>{t.retry}</button></> : <><span className="loader" aria-hidden="true" />{t.loading}</>}
+    </section>}
+    {election && layout && <div className="workspace">
       <div className="map-column">
         <div className="map-toolbar"><label>{t.search}<select value={provinceId ?? ''} onChange={(event) => selectProvince(event.target.value || null)}><option value="">{t.searchPlaceholder}</option>{election.provinces.slice().sort((a, b) => a.name[language].localeCompare(b.name[language])).map((item) => <option key={item.id} value={item.id}>{item.name[language]}</option>)}</select></label>{province && <button className="reset" onClick={() => selectProvince(null)}>← {t.reset}</button>}</div>
         <HexCartogram election={election} cells={layout.cells} language={language} selectedProvince={provinceId} highlightedParty={pinnedParty ?? hoveredParty} onSelect={selectProvince} />
@@ -150,11 +166,11 @@ function App() {
             <button className={resultScope === 'national' ? 'active' : ''} aria-pressed={resultScope === 'national'} onClick={() => setResultScope('national')}>{t.national}</button>
           </div>
           {resultScope === 'province' && <InspectorSection title={province.name[language]} eyebrow={t.province} result={province} parties={parties} language={language} />}
-          {resultScope === 'region' && <InspectorSection title={region!.name[language]} eyebrow={t.region} result={region!} parties={parties} language={language} />}
+          {resultScope === 'region' && region && <InspectorSection title={region.name[language]} eyebrow={t.region} result={region} parties={parties} language={language} />}
           {resultScope === 'national' && <InspectorSection title={language === 'es' ? 'España' : 'Spain'} eyebrow={t.national} result={election.national} parties={parties} language={language} majority />}
         </>}
       </aside>
-    </div>
+    </div>}
     <footer>Daniel Almazán · <a href="https://infoelectoral.interior.gob.es/es/elecciones-celebradas/area-de-descargas/index.html">Infoelectoral</a> · INE · JEC / BOE · <a href="https://centrodedescargas.cnig.es/CentroDescargas/detalleArchivo?sec=9000029">Obra derivada de BDLJE CC-BY 4.0, IGN</a></footer>
   </main>
 }

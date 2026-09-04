@@ -1,12 +1,12 @@
-import generated from '../data/generated.json'
+import payload from '../../public/data/elections/2023-07-23.json'
 import { boundaryPath, points } from './hex'
-import type { CartogramCell, GeneratedDataset } from '../types'
+import type { CartogramCell, ElectionPayload } from '../types'
 
-const data = generated as GeneratedDataset
+const data = payload as ElectionPayload
 
 describe('regular hex geometry', () => {
   it('emits six equal sides for every seat', () => {
-    for (const layout of data.layouts) for (const cell of layout.cells) {
+    for (const cell of data.layout.cells) {
       const vertices = points(cell).split(' ').map((point) => point.split(',').map(Number))
       const lengths = vertices.map(([x, y], index) => {
         const [nextX, nextY] = vertices[(index + 1) % 6]
@@ -17,7 +17,7 @@ describe('regular hex geometry', () => {
   })
 
   it('classifies all three boundary levels from shared cell edges', () => {
-    const cells = data.layouts[0].cells as CartogramCell[]
+    const cells = data.layout.cells as CartogramCell[]
     expect(boundaryPath(cells, 'province')).toContain('M')
     expect(boundaryPath(cells, 'region')).toContain('M')
     expect(boundaryPath(cells, 'nation')).toContain('M')

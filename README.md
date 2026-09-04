@@ -1,6 +1,6 @@
 # Spain general election hex cartogram
 
-A bilingual, static React/TypeScript election atlas for the Congress elections of 23 July 2023, 10 November 2019, and 28 April 2019. Each regular hexagon represents one of 350 deputies. The application is built for `/elections/general-elections-hex/`; the legacy 2016 page is not part of this repository and is never modified.
+A bilingual, static React/TypeScript election atlas for all 16 Congress elections held from 1977 through 2023. Each regular hexagon represents one of 350 deputies. The application is built for `/elections/general-elections-hex/`; the legacy 2016 page is not part of this repository and is never modified.
 
 ## Run and verify
 
@@ -10,18 +10,26 @@ npm run check
 npm run dev
 ```
 
-`npm run validate:data` verifies 350 seats per election, unique axial coordinates, shared 2019 geometry, vote reconciliation, connected province patches, and connected party clusters. `npm run test:e2e` runs the browser suite after Chromium is installed.
+`npm run validate:data` verifies the complete 16-election manifest, reviewed current-election hashes, definitive province allocations, 350 seats per election, payload budgets, vote reconciliation, connected province patches, and connected party clusters. `npm run test:e2e` runs the browser suite after Chromium is installed.
 
 ## Data and provenance
 
-The generated browser asset is [`src/data/generated.json`](src/data/generated.json). It bundles all results and layouts, so the deployed atlas makes no API or map-tile requests.
+The compact browser manifest is [`src/data/election-manifest.json`](src/data/election-manifest.json). Results and layouts are stored as one static file per election under `public/data/elections/`; the browser downloads only the selected election and caches it for the session. The deployed atlas makes no third-party API or map-tile requests.
 
-- Election result source: final Junta Electoral Central reports for both 2019 elections and the final BOE proclamation for 2023.
-- Input archive: the Ministry of the Interior’s Infoelectoral Congress files, normalized from its fixed-width download format through a preserved parquet mirror. The 2023 result rows are taken from the final BOE tables.
+- Election result source: the Ministry of the Interior’s consolidated [Infoelectoral Congress workbook](https://descargas.interior.gob.es/datasets/resultados_electorales/Elecciones-Congreso.xlsx), containing province participation, candidacy votes and definitive seat allocations for all elections from 1977 to 2023. The existing 2023 and 2019 payloads remain byte-for-byte reviewed assets based on their final JEC/BOE publications.
 - Geography keys: official two-digit INE province and autonomous-community codes. Autonomous-community and national rows are derived from province rows.
 - Vote share: candidacy votes divided by all valid ballots, including blank ballots and excluding null ballots.
-- Layout: official IGN province polygons are projected and rasterized into a connected 325-cell peninsular mask. A capacity-constrained mosaic-cartogram solver assigns exact provincial seat counts while minimizing polygon and centroid displacement; Canarias, Illes Balears, Ceuta, and Melilla use geographic insets. Deterministic seat transfers produce the closely related 2023 variant. Party clusters are assigned by a connectivity-constrained backtracking solver.
+- Layout: official IGN province polygons are projected and rasterized into a connected peninsular mask for each distinct historical provincial allocation. A capacity-constrained mosaic-cartogram solver assigns exact provincial seat counts while minimizing polygon and centroid displacement; Canarias, Illes Balears, Ceuta, and Melilla use geographic insets. Party clusters are assigned by a connectivity-constrained backtracking solver. Existing 2023 and 2019 layouts are frozen.
 - Candidacy labels: election-specific raw candidacy names are retained in each party record’s `aliases`; display families are election-local and are not joined across election datasets.
+- Regional summaries: province rows are aggregated using present-day autonomous-community groupings to provide a consistent regional view across the full series.
+
+To rebuild the 13 historical payloads, download the official workbook and an IGN `AdministrativeUnit` GeoJSON filtered to `nationallevelname=Provincia`, install `requirements-data.txt`, and run:
+
+```sh
+python scripts/build_data.py \
+  --congress-xlsx /path/to/Elecciones-Congreso.xlsx \
+  --provinces /path/to/ign-provinces.json
+```
 
 ### Cartogram method
 
@@ -36,7 +44,7 @@ This is a **mosaic cartogram**, the cartogram family designed for small integer 
 
 Background: [Mosaic Drawings and Cartograms](https://doi.org/10.1111/cgf.12648) and [Cartogram](https://michael-gastner.com/publications/full_text_pub/Gastner2021.pdf). These sources describe mosaic cartograms as equal square or hexagonal tiles assigned so contiguous geographic regions remain contiguous, with shape and adjacency preservation as principal quality criteria.
 
-The geographic base is generated by [`scripts/generate_geographic_layout.py`](scripts/generate_geographic_layout.py) from the official IGN administrative-unit service and stored as the reviewed compact asset [`data/layouts/province-layout-2019.json`](data/layouts/province-layout-2019.json). [`scripts/build_data.py`](scripts/build_data.py) combines it with election results. Large source archives are not committed. The generated asset records publisher, final-result URL, retrieval date, and transformations for every election.
+The geographic bases are generated by [`scripts/generate_geographic_layout.py`](scripts/generate_geographic_layout.py) from the official IGN administrative-unit service and stored as reviewed compact assets under `data/layouts/`. [`scripts/build_data.py`](scripts/build_data.py) combines them with election results. Large source workbooks and geometry downloads are not committed. Every generated election records publisher, result URL, retrieval date, final status, and transformations.
 
 ## Publishing under danielalmazan.com
 

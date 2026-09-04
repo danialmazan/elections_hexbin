@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "validate:data": "node scripts/validate-data.mjs",
-    "check": "npm run validate:data && npm run test && npm run build"
+    "validate:performance": "node scripts/validate-performance.mjs",
+    "check": "npm run validate:data && npm run test && npm run build && npm run validate:performance"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

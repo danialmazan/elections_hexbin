@@ -1,5 +1,5 @@
 export type Language = 'en' | 'es'
-export type ElectionId = '2023-07-23' | '2019-11-10' | '2019-04-28'
+export type ElectionId = string
 
 export interface LocalizedText {
   en: string
@@ -79,15 +79,16 @@ export interface CartogramLayout {
   cells: CartogramCell[]
 }
 
-export interface GeneratedDataset {
+export interface ElectionPayload {
   schemaVersion: 1
-  generatedAt: string
-  elections: ElectionData[]
-  layouts: CartogramLayout[]
-  layoutProvenance: {
-    publisher: string
-    sourceUrl: string
-    method: string
-    license: string
-  }
+  election: ElectionData
+  layout: CartogramLayout
+}
+
+export interface ElectionManifestEntry {
+  id: ElectionId
+  label: LocalizedText
+  dataFile: string
+  olderId: ElectionId | null
+  newerId: ElectionId | null
 }

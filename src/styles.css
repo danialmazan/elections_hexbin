@@ -10,10 +10,16 @@ header { display: grid; grid-template-columns: minmax(320px, 1fr) auto; gap: 32p
 h1 { margin: 0; font: 600 clamp(42px, 5vw, 72px)/.92 'Iowan Old Style', Baskerville, Georgia, serif; letter-spacing: -.035em; }
 .intro { max-width: 650px; margin: 10px 0 0; color: #5d5a52; font-size: 14px; line-height: 1.55; }
 .controls { display: flex; align-items: end; gap: 18px; }
-.segments, .language { display: flex; border: 1px solid var(--ink); background: #e9e5db; }
-.segments button, .language button { border: 0; border-right: 1px solid var(--ink); background: transparent; padding: 9px 12px; font: 500 12px ui-monospace, monospace; white-space: nowrap; }
-.segments button:last-child, .language button:last-child { border-right: 0; }
-.segments button.active, .language button.active { color: var(--paper); background: var(--ink); }
+.election-picker, .language { display: flex; border: 1px solid var(--ink); background: #e9e5db; }
+.election-picker button, .language button { border: 0; border-right: 1px solid var(--ink); background: transparent; padding: 9px 12px; font: 500 12px ui-monospace, monospace; white-space: nowrap; }
+.election-picker button:last-child, .language button:last-child { border-right: 0; }
+.election-picker button:disabled { color: #9e998e; cursor: default; }
+.election-picker select { width: 180px; max-width: none; border: 0; border-right: 1px solid var(--ink); padding: 8px 30px 8px 12px; background-color: #f3f0e8; font: 500 12px ui-monospace, monospace; }
+.language button.active { color: var(--paper); background: var(--ink); }
+.data-state { min-height: 52vh; display: flex; align-items: center; justify-content: center; gap: 12px; color: #5d5a52; font: 500 12px ui-monospace, monospace; }
+.data-state button { border: 1px solid var(--ink); background: transparent; padding: 7px 10px; }
+.loader { width: 13px; height: 13px; border: 1px solid var(--line); border-top-color: var(--ink); border-radius: 50%; animation: spin .75s linear infinite; }
+@keyframes spin { to { transform: rotate(1turn); } }
 .workspace { display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(350px, .75fr); gap: clamp(26px, 4vw, 64px); padding-top: 25px; align-items: start; }
 .map-column { min-width: 0; }
 .map-toolbar { min-height: 39px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
@@ -89,9 +95,9 @@ footer { margin-top: 38px; padding-top: 13px; border-top: 1px solid var(--ink); 
   main { padding-inline: 13px; }
   h1 { font-size: 45px; }
   .controls { align-items: stretch; gap: 10px; }
-  .segments { display: grid; grid-template-columns: 1fr; }
-  .segments button { border-right: 0; border-bottom: 1px solid var(--ink); padding: 7px 10px; }
-  .segments button:last-child { border-bottom: 0; }
+  .control-group { min-width: 0; }
+  .election-picker select { width: min(180px, calc(100vw - 170px)); }
+  .election-picker button { padding-inline: 10px; }
   .language { align-self: end; }
   .map-toolbar { align-items: end; }
   .map-toolbar label { display: grid; gap: 2px; }

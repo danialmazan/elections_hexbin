@@ -7,7 +7,7 @@ test('restores deep links, selects a province, and retains it across elections',
   await page.getByRole('button', { name: 'Autonomous community' }).click()
   await expect(page.getByRole('heading', { name: 'Community of Madrid' })).toBeVisible()
   await page.getByRole('button', { name: 'Province', exact: true }).click()
-  await page.getByRole('button', { name: '10 November 2019' }).click()
+  await page.getByLabel('Election', { exact: true }).selectOption('2019-11-10')
   await expect(page).toHaveURL(/election=2019-11-10.*province=28/)
   await page.keyboard.press('Escape')
   await expect(page.getByText('National result')).toBeVisible()
@@ -33,4 +33,19 @@ test('mobile document has no horizontal overflow', async ({ page }, testInfo) =>
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow).toBeLessThanOrEqual(1)
   await expect(page.getByText('Partidos con representación')).toBeVisible()
+})
+
+test('every historical deep link loads only its selected election payload', async ({ page }) => {
+  const ids = ['2023-07-23', '2019-11-10', '2019-04-28', '2016-06-26', '2015-12-20', '2011-11-20', '2008-03-09', '2004-03-14', '2000-03-12', '1996-03-03', '1993-06-06', '1989-10-29', '1986-06-22', '1982-10-28', '1979-03-01', '1977-06-15']
+  for (const id of ids) {
+    const requested: string[] = []
+    const listener = (request: { url: () => string }) => { if (request.url().includes('/data/elections/')) requested.push(request.url()) }
+    page.on('request', listener)
+    await page.goto(`?election=${id}&lang=en`)
+    await expect(page.getByLabel('Election', { exact: true })).toHaveValue(id)
+    await expect(page.getByText('National result')).toBeVisible()
+    expect(requested).toHaveLength(1)
+    expect(requested[0]).toContain(`${id}.json`)
+    page.off('request', listener)
+  }
 })
