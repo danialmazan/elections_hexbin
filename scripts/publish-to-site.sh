@@ -2,12 +2,12 @@
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 /absolute/path/to/danielalmazan.com-repository" >&2
+  echo "Usage: $0 /absolute/path/to/elections-pages-repository" >&2
   exit 2
 fi
 
 site_repository="$1"
-destination="$site_repository/elections/general-elections-hex"
+destination="$site_repository/general-elections-hex"
 if [[ ! -d "$site_repository/.git" ]]; then
   echo "Not a Git repository: $site_repository" >&2
   exit 2
